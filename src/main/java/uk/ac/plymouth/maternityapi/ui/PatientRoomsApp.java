@@ -2,10 +2,9 @@ package uk.ac.plymouth.maternityapi.ui;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class PatientRoomsApp extends JFrame {
 
@@ -15,18 +14,28 @@ public class PatientRoomsApp extends JFrame {
     private JButton leastUsedButton;
     private JTextArea resultsArea;
 
+    // Demo data for Part B visualisation
+    private final Map<String, List<String>> demoRoomsByPatient = new LinkedHashMap<>();
+    private final List<String> demoLeastUsedRooms = List.of("C2", "D3");
+
     public PatientRoomsApp() {
         setTitle("Maternity Unit System");
-        setSize(550, 420);
+        setSize(800, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
+        loadDemoData();
         initComponents();
     }
 
+    private void loadDemoData() {
+        demoRoomsByPatient.put("1", List.of("B1"));
+        demoRoomsByPatient.put("2", List.of("A1"));
+        demoRoomsByPatient.put("5", List.of("C2", "B1", "D3"));
+    }
+
     private void initComponents() {
-        JPanel mainPanel = new JPanel();
-        mainPanel.setLayout(new BorderLayout(15, 15));
+        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         mainPanel.setBackground(Color.WHITE);
 
@@ -38,17 +47,22 @@ public class PatientRoomsApp extends JFrame {
         inputPanel.setBackground(Color.WHITE);
 
         JLabel patientIdLabel = new JLabel("Patient ID:");
+        patientIdLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+
         patientIdField = new JTextField(10);
+        patientIdField.setFont(new Font("SansSerif", Font.PLAIN, 16));
 
         searchButton = new JButton("Search");
         searchButton.setBackground(new Color(70, 130, 180));
         searchButton.setForeground(Color.WHITE);
+        searchButton.setFocusPainted(false);
 
         clearButton = new JButton("Clear");
 
         leastUsedButton = new JButton("Least Used Rooms");
         leastUsedButton.setBackground(new Color(100, 180, 100));
         leastUsedButton.setForeground(Color.WHITE);
+        leastUsedButton.setFocusPainted(false);
 
         inputPanel.add(patientIdLabel);
         inputPanel.add(patientIdField);
@@ -58,11 +72,13 @@ public class PatientRoomsApp extends JFrame {
 
         resultsArea = new JTextArea();
         resultsArea.setEditable(false);
-        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 18));
         resultsArea.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        resultsArea.setLineWrap(true);
+        resultsArea.setWrapStyleWord(true);
 
         JScrollPane scrollPane = new JScrollPane(resultsArea);
-        scrollPane.setPreferredSize(new Dimension(500, 240));
+        scrollPane.setPreferredSize(new Dimension(700, 420));
 
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         mainPanel.add(inputPanel, BorderLayout.CENTER);
@@ -72,81 +88,39 @@ public class PatientRoomsApp extends JFrame {
 
         searchButton.addActionListener(e -> searchPatientRooms());
         clearButton.addActionListener(e -> clearFields());
-        leastUsedButton.addActionListener(e -> getLeastUsedRooms());
+        leastUsedButton.addActionListener(e -> showLeastUsedRooms());
     }
 
     private void searchPatientRooms() {
         String patientIdText = patientIdField.getText().trim();
 
         if (patientIdText.isEmpty() || !patientIdText.matches("\\d+")) {
-            JOptionPane.showMessageDialog(this, "Enter a valid numeric patient ID (e.g. 1, 2, 3)");
+            JOptionPane.showMessageDialog(this, "Enter a valid numeric patient ID (e.g. 1, 2, 5)");
             return;
         }
 
-        resultsArea.setText("Loading...");
+        List<String> rooms = demoRoomsByPatient.get(patientIdText);
 
-        try {
-            String apiUrl = "http://localhost:8080/api/patients/" + patientIdText + "/rooms";
-
-            String jsonResponse = callApi(apiUrl);
-
-            if (jsonResponse.equals("[]")) {
-                resultsArea.setText("No rooms found.\n\n(This may be due to missing data.)");
-            } else {
-                resultsArea.setText("Rooms:\n\n" + formatJson(jsonResponse));
-            }
-
-        } catch (Exception ex) {
-            resultsArea.setText("Error connecting to system.\n" + ex.getMessage());
+        if (rooms != null && !rooms.isEmpty()) {
+            resultsArea.setText(
+                    "DEMO DATA ACTIVE\n\n" +
+                            "Rooms used by patient " + patientIdText + ":\n\n" +
+                            String.join("\n", rooms)
+            );
+        } else {
+            resultsArea.setText(
+                    "DEMO DATA ACTIVE\n\n" +
+                            "No rooms found for patient ID " + patientIdText + "."
+            );
         }
     }
 
-    private void getLeastUsedRooms() {
-        resultsArea.setText("Loading least used rooms...");
-
-        try {
-            String apiUrl = "http://localhost:8080/api/rooms/least-used";
-
-            String jsonResponse = callApi(apiUrl);
-
-            if (jsonResponse.equals("[]")) {
-                resultsArea.setText("No room data available.");
-            } else {
-                resultsArea.setText("Least Used Rooms:\n\n" + formatJson(jsonResponse));
-            }
-
-        } catch (Exception ex) {
-            resultsArea.setText("Error connecting to system.\n" + ex.getMessage());
-        }
-    }
-
-    private String callApi(String apiUrl) throws Exception {
-        URL url = new URL(apiUrl);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("GET");
-
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(connection.getInputStream())
+    private void showLeastUsedRooms() {
+        resultsArea.setText(
+                "DEMO DATA ACTIVE\n\n" +
+                        "Least Used Rooms:\n\n" +
+                        String.join("\n", demoLeastUsedRooms)
         );
-
-        StringBuilder response = new StringBuilder();
-        String line;
-
-        while ((line = reader.readLine()) != null) {
-            response.append(line);
-        }
-
-        reader.close();
-        connection.disconnect();
-
-        return response.toString();
-    }
-
-    private String formatJson(String json) {
-        return json.replace("[", "")
-                .replace("]", "")
-                .replace("\"", "")
-                .replace(",", "\n");
     }
 
     private void clearFields() {
@@ -155,8 +129,6 @@ public class PatientRoomsApp extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new PatientRoomsApp().setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> new PatientRoomsApp().setVisible(true));
     }
 }
